@@ -6,25 +6,26 @@ Adafruit_LSM6DS3TRC lsm6ds2;
 Adafruit_LIS3MDL lis3mdl1;
 Adafruit_LIS3MDL lis3mdl2;
 
-volatile bool IMUsAvailable = false;
-volatile bool imuDataReady = false;
-bool calibrationLoaded = false;
+BleGamepad bleGamepad;
+BleGamepadConfiguration bleGamepadConfig;
 
+bool IMUsAvailable = false;
+bool imuDataReady = false;
+bool calibrationLoaded = false;
 
 IMU1_euler_calib_status_packed imu1EulerCalibration;
 IMU2_euler_calib_status_packed imu2EulerCalibration;
 
-#define CALIBRATION_ADDRESS 0x100
-#define SETTING_ADDRESS 0x00
-#define SETTINGS_VALID_FLAG 0xAA55
-
-bool restoreSettings() {
-  if (EEPROM.begin(512)) {
+bool restoreSettings()
+{
+  if (EEPROM.begin(512))
+  {
     IMU_config_data_anJoystick_packed configData;
     uint16_t validationFlag;
 
     EEPROM.get(SETTING_ADDRESS, validationFlag);
-    if (validationFlag == SETTINGS_VALID_FLAG) {
+    if (validationFlag == SETTINGS_VALID_FLAG)
+    {
       EEPROM.get(SETTING_ADDRESS + sizeof(validationFlag), configData);
 
       // Configure IMU1
@@ -53,7 +54,8 @@ bool restoreSettings() {
   return false;
 }
 
-void setDefaultSettings() {
+void setDefaultSettings()
+{
   IMU_config_data_anJoystick_packed configData;
 
   configData.configDataIMUJOTISK.IMU1_accel_gyro_rate = LSM6DS_RATE_12_5_HZ;
@@ -78,26 +80,31 @@ void setDefaultSettings() {
   Serial.println("Default settings saved");
 }
 
-bool initIMU() {
+bool initIMU()
+{
   Overall_status_data_packed overallStatusDatapPacked;
-  
-  if (!lsm6ds1.begin_I2C(0x6A)) {
+
+  if (!lsm6ds1.begin_I2C(0x6A))
+  {
     Serial.println("Failed to find LSM6DS1 chip");
-     overallStatusDatapPacked.overallStatusData.Imu1_status = statuscode_sensor::FAILED;
-    
+    overallStatusDatapPacked.overallStatusData.Imu1_status = statuscode_sensor::FAILED;
+
     overallStatusDatapPacked.overallStatusData.Imu1_status = statuscode_sensor::FAILED;
     return false;
   }
-  if (!lsm6ds2.begin_I2C(0x6B)) {
+  if (!lsm6ds2.begin_I2C(0x6B))
+  {
     Serial.println("Failed to find LSM6DS2 chip");
     overallStatusDatapPacked.overallStatusData.Imu2_status = statuscode_sensor::FAILED;
     return false;
   }
-  if (!lis3mdl1.begin_I2C(0x1E)) {
+  if (!lis3mdl1.begin_I2C(0x1E))
+  {
     Serial.println("Failed to find LIS3MDL chip 1");
     return false;
   }
-  if (!lis3mdl2.begin_I2C(0x1C)) {
+  if (!lis3mdl2.begin_I2C(0x1C))
+  {
     Serial.println("Failed to find LIS3MDL chip 2");
     return false;
   }
@@ -108,7 +115,8 @@ bool initIMU() {
   return true;
 }
 
-void setupIMUDataRate() {
+void setupIMUDataRate()
+{
   lsm6ds1.setAccelDataRate(LSM6DS_RATE_12_5_HZ);
   lsm6ds1.setGyroDataRate(LSM6DS_RATE_12_5_HZ);
   lsm6ds1.setAccelRange(LSM6DS_ACCEL_RANGE_2_G);
@@ -126,7 +134,8 @@ void setupIMUDataRate() {
   lis3mdl2.setRange(LIS3MDL_RANGE_4_GAUSS);
 }
 
-void setupIMUInterrupts() {
+void setupIMUInterrupts()
+{
   pinMode(IMU1_INT_PIN, INPUT);
   pinMode(IMU2_INT_PIN, INPUT);
   attachInterrupt(digitalPinToInterrupt(IMU1_INT_PIN), imu1InterruptHandler, RISING);
@@ -135,12 +144,15 @@ void setupIMUInterrupts() {
   Serial.println("IMU interrupts configured");
 }
 
-void IRAM_ATTR imu1InterruptHandler() {
+void IRAM_ATTR imu1InterruptHandler()
+{
   imuDataReady = true;
 }
 
-bool loadCalibration() {
-  if (!EEPROM.begin(512)) {
+bool loadCalibration()
+{
+  if (!EEPROM.begin(512))
+  {
     Serial.println("Failed to initialize EEPROM");
     return false;
   }
@@ -149,11 +161,35 @@ bool loadCalibration() {
   EEPROM.get(CALIBRATION_ADDRESS + sizeof(IMU1_euler_calib_status_packed), imu2EulerCalibration);
 
   if (imu1EulerCalibration.eulerCalibStatus.calibation != 0 &&
-      imu2EulerCalibration.eulerCalibStatus.calibation != 0) {
+      imu2EulerCalibration.eulerCalibStatus.calibation != 0)
+  {
     calibrationLoaded = true;
     return true;
   }
 
   calibrationLoaded = false;
   return false;
+}
+
+void setupBLEGamepad()
+{
+
+  Serial.println("Starting BLE work!");
+  bleGamepadConfig.setAutoReport(false);
+  bleGamepadConfig.setControllerType(CONTROLLER_TYPE_GAMEPAD);
+  bleGamepadConfig.setButtonCount(numOfButtons);
+  bleGamepadConfig.setHatSwitchCount(numOfHatSwitches);
+  bleGamepadConfig.setVid(0xe502);
+  bleGamepadConfig.setPid(0xabcd);
+
+  bleGamepadConfig.setModelNumber(const_cast<char *>("ESP32-G1"));
+  bleGamepadConfig.setSoftwareRevision(const_cast<char *>("v1.0.0"));
+  bleGamepadConfig.setSerialNumber(const_cast<char *>("SN001"));
+  bleGamepadConfig.setFirmwareRevision(const_cast<char *>("FW1.0"));
+  bleGamepadConfig.setHardwareRevision(const_cast<char *>("HW1.0"));
+
+  bleGamepadConfig.setAxesMin(0x0000);
+  bleGamepadConfig.setAxesMax(0x7FFF);
+
+  bleGamepad.begin(&bleGamepadConfig);
 }

@@ -1,8 +1,34 @@
 #ifndef APP_H
 #define APP_H
 
+
+
+#include <Wire.h>
+#include <EEPROM.h>
+#include <Adafruit_LSM6DS3TRC.h>
+#include <Adafruit_LIS3MDL.h>
+#include <Adafruit_AHRS_NXPFusion.h>
+#include <Adafruit_Sensor_Calibration_EEPROM.h>
+#include <Adafruit_MAX1704X.h>
+#include <BleGamepad.h>
 #include <stdint.h>
 
+
+#define CALIBRATION_ADDRESS 0x100
+#define SETTING_ADDRESS 0x00
+#define SETTINGS_VALID_FLAG 0xAA55
+
+#define IMU1_INT_PIN 40
+#define IMU2_INT_PIN 38
+
+
+#define FUEL_GAUGE_I2C_SDA_PIN 34
+#define FUEL_GAUGE_I2C_SCL_PIN 33
+
+#define VSVY_EN_PIN 18
+
+#define numOfButtons 64
+#define numOfHatSwitches 4 
 
 // Cấu hình packed struct
 typedef struct __attribute__((packed)) config_IMU__Joystick {
