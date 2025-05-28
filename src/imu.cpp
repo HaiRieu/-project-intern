@@ -10,7 +10,7 @@ volatile bool IMUsAvailable = false;
 volatile bool imuDataReady = false;
 bool calibrationLoaded = false;
 
-// Overall_status_data_packed overallStatusDatapPacked;
+
 IMU1_euler_calib_status_packed imu1EulerCalibration;
 IMU2_euler_calib_status_packed imu2EulerCalibration;
 
@@ -83,14 +83,14 @@ bool initIMU() {
   
   if (!lsm6ds1.begin_I2C(0x6A)) {
     Serial.println("Failed to find LSM6DS1 chip");
-    // overallStatusDatapPacked.overallStatusData.Imu1_status = statuscode_sensor::FAILED;
+     overallStatusDatapPacked.overallStatusData.Imu1_status = statuscode_sensor::FAILED;
     
     overallStatusDatapPacked.overallStatusData.Imu1_status = statuscode_sensor::FAILED;
     return false;
   }
   if (!lsm6ds2.begin_I2C(0x6B)) {
     Serial.println("Failed to find LSM6DS2 chip");
-   // overallStatusDatapPacked.overallStatusData.Imu2_status = statuscode_sensor::FAILED;
+    overallStatusDatapPacked.overallStatusData.Imu2_status = statuscode_sensor::FAILED;
     return false;
   }
   if (!lis3mdl1.begin_I2C(0x1E)) {
@@ -102,8 +102,8 @@ bool initIMU() {
     return false;
   }
 
- // overallStatusDatapPacked.overallStatusData.Imu1_status = statuscode_sensor::RUNNING;
- // overallStatusDatapPacked.overallStatusData.Imu2_status = statuscode_sensor::RUNNING;
+  overallStatusDatapPacked.overallStatusData.Imu1_status = statuscode_sensor::RUNNING;
+  overallStatusDatapPacked.overallStatusData.Imu2_status = statuscode_sensor::RUNNING;
   IMUsAvailable = true;
   return true;
 }
