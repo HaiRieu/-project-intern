@@ -1,4 +1,6 @@
 #include "appsetup.h"
+#include "app.h"
+#include "appprocess.h"
 
 uint32_t timestamp;
 bool IMUsAvailable = false;
@@ -6,6 +8,9 @@ Adafruit_NXPSensorFusion fillsion1, fillsion2;
 
 IMU1_data_Raw_packed imu1DataRawPacked;
 IMU2_data_Raw_packed imu2DataRawPacked;
+
+IMU1_euler_calib_status_packed imu1EulerCalibration;
+IMU2_euler_calib_status_packed imu2EulerCalibration;
 
 /*
 brief Initializes the IMU sensors and sets their data rates.
@@ -51,7 +56,6 @@ bool initIMU(SensorGroupIMU &sensorGroup)
   return true;
 }
 
-
 /*
 brief Sets up the IMU data rate and range for the sensors.
 @param sensorGroup Reference to the SensorGroupIMU object containing IMU sensors
@@ -77,7 +81,6 @@ void setupIMUDataRate(SensorGroupIMU &sensorGroup)
   sensorGroup.lis3mdl2->setRange(LIS3MDL_RANGE_4_GAUSS);
 }
 
-
 /*
 
 brief Reads data from the IMU sensors and updates the imu1DataRawPacked and imu2DataRawPacked structures.
@@ -99,11 +102,19 @@ void readDataIMU(SensorGroupIMU &sensorGroup)
     sensorGroup.lis3mdl1->getEvent(&mag1);
     sensorGroup.lis3mdl2->getEvent(&mag2);
 
+    cal.calibrate(accel1);
+    cal.calibrate(gyro1);
+    cal.calibrate(mag1);
+    cal.calibrate(accel2);
+    cal.calibrate(gyro2);
+    cal.calibrate(mag2);
+    cal.saveCalibration() ; 
+
     if ((millis() - timestamp) < (1000 / FILTER_UPDATE_RATE_HZ))
     {
       return;
     }
-
+    timestamp = millis();
     imu1DataRawPacked.data_Imu1.accelX = accel1.acceleration.x;
     imu1DataRawPacked.data_Imu1.accelY = accel1.acceleration.y;
     imu1DataRawPacked.data_Imu1.accelZ = accel1.acceleration.z;
@@ -128,6 +139,37 @@ void readDataIMU(SensorGroupIMU &sensorGroup)
     imu2DataRawPacked.data_Imu2.MagX = mag2.magnetic.y;
     imu2DataRawPacked.data_Imu2.MagX = mag2.magnetic.z;
 
+    fillsion1.update(imu1DataRawPacked.data_Imu1.accelX, imu1DataRawPacked.data_Imu1.accelY, imu1DataRawPacked.data_Imu1.accelZ,
+                     imu1DataRawPacked.data_Imu1.GyroX, imu1DataRawPacked.data_Imu1.GyroY, imu1DataRawPacked.data_Imu1.GyroZ,
+                     imu1DataRawPacked.data_Imu1.MagX, imu1DataRawPacked.data_Imu1.MagY, imu1DataRawPacked.data_Imu1.MagZ);
 
+    fillsion2.update(imu2DataRawPacked.data_Imu2.accelX, imu2DataRawPacked.data_Imu2.accelY, imu2DataRawPacked.data_Imu2.accelZ,
+                     imu2DataRawPacked.data_Imu2.GyroX, imu2DataRawPacked.data_Imu2.GyroY, imu2DataRawPacked.data_Imu2.GyroZ,
+                     imu2DataRawPacked.data_Imu2.MagX, imu2DataRawPacked.data_Imu2.MagY, imu2DataRawPacked.data_Imu2.MagZ);
+
+    imu1EulerCalibration.eulerCalibStatus.EulerRoll = fillsion1.getRoll();
+    imu1EulerCalibration.eulerCalibStatus.EulerPitch = fillsion1.getPitch();
+    imu1EulerCalibration.eulerCalibStatus.EulerYaw = fillsion1.getYaw();
+
+    imu2EulerCalibration.eulerCalibStatus.EulerRoll = fillsion2.getRoll();
+    imu2EulerCalibration.eulerCalibStatus.EulerPitch = fillsion2.getPitch();
+    imu2EulerCalibration.eulerCalibStatus.EulerYaw = fillsion2.getYaw();
+  }else {
+
+  }
+}
+
+/*
+brief Sends IMU data over BLE if the BLE gamepad is connected.
+@param bleGamepad Reference to the ble object containing the BLE gamepad instance
+*/
+void senDataBLE(ble &bleGamepad)
+{
+  if (bleGamepad.bleGamepad->isConnected())
+  {
+    bleGamepad.bleGamepad->setterCharacterData(bleGamepad.bleGamepad->IMU1RawData, imu1DataRawPacked.rawData, sizeof(imu1DataRawPacked.rawData));
+    bleGamepad.bleGamepad->setterCharacterData(bleGamepad.bleGamepad->IMU2RawData, imu2DataRawPacked.rawData, sizeof(imu2DataRawPacked.rawData));
+    bleGamepad.bleGamepad->setterCharacterData(bleGamepad.bleGamepad->IMU1FuseDataCaliStatus, imu1EulerCalibration.rawData, sizeof(imu1EulerCalibration.rawData));
+    bleGamepad.bleGamepad->setterCharacterData(bleGamepad.bleGamepad->IMU2FuseDataCaliStatus, imu2EulerCalibration.rawData, sizeof(imu2EulerCalibration.rawData));
   }
 }

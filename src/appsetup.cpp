@@ -8,7 +8,7 @@ void setupIMUDataRate(SensorGroupIMU &sensorGroup);
 void setupIMUInterrupts(SensorGroupIMU &sensorGroup);
 void IRAM_ATTR imu1InterruptHandler();
 bool loadCalibration();
-void setupBLEGamepad() ; 
+void setupBLEGamepad(ble &bleGamepad); ; 
 bool initFuelGauge() ;
 void ledRGB() ; 
 void systemInit() ;
@@ -16,6 +16,7 @@ void updateOverallStatusData() ;
 
 
 SensorGroupIMU sensorGroup;
+ble bleGamepad; 
 
 /*
 brief Setup the application
@@ -52,7 +53,7 @@ void setupApp()
   } else {
     Serial.println("Failed to load calibration");
   }
-  setupBLEGamepad();
+  setupBLEGamepad(bleGamepad);
   ledRGB() ; 
   updateOverallStatusData();
 }

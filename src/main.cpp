@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "appsetup.h" 
+#include "appprocess.h"
 
 
 void setup() {
@@ -7,6 +8,5 @@ void setup() {
 }
 
 void loop() {
-  delay(1000);
-  Serial.println("Hello World");
+   processApp() ;
 }

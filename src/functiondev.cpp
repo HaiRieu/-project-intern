@@ -1,4 +1,4 @@
-#include <app.h>
+#include "app.h"
 
 /*
 
@@ -6,13 +6,12 @@ brief Global variables and objects for the application
 This file contains the global variables and objects used throughout the application, including sensor groups, calibration data, BLE gamepad configuration, and fuel gauge.
 */
 
-IMU1_euler_calib_status_packed imu1EulerCalibration;
-IMU2_euler_calib_status_packed imu2EulerCalibration;
+extern IMU1_euler_calib_status_packed imu1EulerCalibration;
+extern IMU2_euler_calib_status_packed imu2EulerCalibration;
 calibratee calibrationData; 
-BleGamepad bleGamepad;
-BleGamepadConfiguration bleGamepadConfig;
-
 Adafruit_MAX17048 fuelGauge;
+
+
 Overall_status_data_packed overallStatusDatapPacked;
 
 bool imuDataReady = false;
@@ -133,6 +132,7 @@ brief Load calibration data from EEPROM
 
 */
 
+
 bool loadCalibration()
 {
   if (!EEPROM.begin(512))
@@ -166,6 +166,29 @@ bool loadCalibration()
   return false;
 }
 
+/*
+ bool loadCalibration(Adafruit_Sensor_Calibration_EEPROM &cal){
+ 
+   if(!cal.begin()) {
+      Serial.println("Failed to initialize calibration");
+      return false;
+   } 
+   if(!cal.loadCalibration()) {
+    calibrationLoaded = false ; 
+    return false ; 
+
+   }
+
+   calibrationLoaded = true ; 
+    imu1EulerCalibration.eulerCalibStatus.calibation = cal.accel_zerog[0];
+    imu2EulerCalibration.eulerCalibStatus.calibation = cal.accel_zerog[1];
+  
+   return true ;
+
+
+ }
+
+*/
 
 /*
 brief Setup BLE Gamepad
@@ -173,27 +196,28 @@ brief Setup BLE Gamepad
  * This function initializes the BLE Gamepad with the specified configuration.
 
 */
-void setupBLEGamepad()
+void setupBLEGamepad(ble &bleGamepad)
 {
 
   Serial.println("Starting BLE work!");
-  bleGamepadConfig.setAutoReport(false);
-  bleGamepadConfig.setControllerType(CONTROLLER_TYPE_GAMEPAD);
-  bleGamepadConfig.setButtonCount(numOfButtons);
-  bleGamepadConfig.setHatSwitchCount(numOfHatSwitches);
-  bleGamepadConfig.setVid(0xe502);
-  bleGamepadConfig.setPid(0xabcd);
+  bleGamepad.bleGamepadConfig->setAutoReport(false) ; 
+    bleGamepad.bleGamepadConfig->setAutoReport(false);
+  bleGamepad.bleGamepadConfig->setControllerType(CONTROLLER_TYPE_GAMEPAD);
+    bleGamepad.bleGamepadConfig->setButtonCount(numOfButtons);
+    bleGamepad.bleGamepadConfig->setHatSwitchCount(numOfHatSwitches);
+    bleGamepad.bleGamepadConfig->setVid(0xe502);
+    bleGamepad.bleGamepadConfig->setPid(0xabcd);
 
-  bleGamepadConfig.setModelNumber(const_cast<char *>("ESP32-G1"));
-  bleGamepadConfig.setSoftwareRevision(const_cast<char *>("v1.0.0"));
-  bleGamepadConfig.setSerialNumber(const_cast<char *>("SN001"));
-  bleGamepadConfig.setFirmwareRevision(const_cast<char *>("FW1.0"));
-  bleGamepadConfig.setHardwareRevision(const_cast<char *>("HW1.0"));
+  bleGamepad.bleGamepadConfig->setModelNumber(const_cast<char *>("ESP32-G1"));
+  bleGamepad.bleGamepadConfig->setSoftwareRevision(const_cast<char *>("v1.0.0"));
+  bleGamepad.bleGamepadConfig->setSerialNumber(const_cast<char *>("SN001"));
+   bleGamepad.bleGamepadConfig->setFirmwareRevision(const_cast<char *>("FW1.0"));
+  bleGamepad.bleGamepadConfig->setHardwareRevision(const_cast<char *>("HW1.0"));
 
-  bleGamepadConfig.setAxesMin(0x0000);
-  bleGamepadConfig.setAxesMax(0x7FFF);
+  bleGamepad.bleGamepadConfig->setAxesMin(0x0000);
+  bleGamepad.bleGamepadConfig->setAxesMax(0x7FFF);
 
-  bleGamepad.begin(&bleGamepadConfig);
+  bleGamepad.bleGamepad->begin(bleGamepad.bleGamepadConfig); 
 }
 
 
