@@ -17,6 +17,11 @@ void updateOverallStatusData() ;
 
 SensorGroupIMU sensorGroup;
 
+/*
+brief Setup the application
+This function initializes the application by setting up the serial communication, restoring settings, initializing the fuel gauge, IMU sensors, loading calibration data, and setting up the BLE gamepad.
+*/
+
 void setupApp() 
 {
   Serial.begin(115200);

@@ -1,5 +1,11 @@
 #include <app.h>
 
+/*
+
+brief Global variables and objects for the application
+This file contains the global variables and objects used throughout the application, including sensor groups, calibration data, BLE gamepad configuration, and fuel gauge.
+*/
+
 IMU1_euler_calib_status_packed imu1EulerCalibration;
 IMU2_euler_calib_status_packed imu2EulerCalibration;
 calibratee calibrationData; 

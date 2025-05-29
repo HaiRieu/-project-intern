@@ -1,6 +1,9 @@
 #include "app.h" 
 
 
+/*
+brief Cycles through RGB colors once with a delay.
+*/
 void cycleRGBOnce() {
 
 
@@ -30,6 +33,7 @@ void cycleRGBOnce() {
     analogWrite(LED_BLUE_PIN, 0);
 
 }
+
 
 void ledRGB()
 {

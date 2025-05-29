@@ -36,6 +36,9 @@
 
 #define FILTER_UPDATE_RATE_HZ 12.5
 
+/*
+brief Structure to hold IMU sensor groups
+*/
 
 struct SensorGroupIMU {
   Adafruit_LSM6DS3TRC* lsm6ds1 ;
@@ -45,7 +48,9 @@ struct SensorGroupIMU {
 };
 
 
-// Cấu hình packed struct
+/*
+brief Structure to hold configuration data for IMU and Joystick
+*/
 typedef struct __attribute__((packed)) config_IMU__Joystick {
   uint8_t IMU1_accel_gyro_rate;
   uint8_t IMU1_mag_freq;
