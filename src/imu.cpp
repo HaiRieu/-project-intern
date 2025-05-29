@@ -1,90 +1,22 @@
-#include "imu.h"
-#include <EEPROM.h>
+#include "appsetup.h"
 
-Adafruit_LSM6DS3TRC lsm6ds1;
-Adafruit_LSM6DS3TRC lsm6ds2;
-Adafruit_LIS3MDL lis3mdl1;
-Adafruit_LIS3MDL lis3mdl2;
-
-BleGamepad bleGamepad;
-BleGamepadConfiguration bleGamepadConfig;
-
+uint32_t timestamp;
 bool IMUsAvailable = false;
-bool imuDataReady = false;
-bool calibrationLoaded = false;
+Adafruit_NXPSensorFusion fillsion1, fillsion2;
 
-IMU1_euler_calib_status_packed imu1EulerCalibration;
-IMU2_euler_calib_status_packed imu2EulerCalibration;
+IMU1_data_Raw_packed imu1DataRawPacked;
+IMU2_data_Raw_packed imu2DataRawPacked;
 
-bool restoreSettings()
-{
-  if (EEPROM.begin(512))
-  {
-    IMU_config_data_anJoystick_packed configData;
-    uint16_t validationFlag;
+/*
+brief Initializes the IMU sensors and sets their data rates.
+@param sensorGroup Reference to the SensorGroupIMU object containing IMU sensors
+*/
 
-    EEPROM.get(SETTING_ADDRESS, validationFlag);
-    if (validationFlag == SETTINGS_VALID_FLAG)
-    {
-      EEPROM.get(SETTING_ADDRESS + sizeof(validationFlag), configData);
-
-      // Configure IMU1
-      lsm6ds1.setAccelDataRate((lsm6ds_data_rate_t)configData.configDataIMUJOTISK.IMU1_accel_gyro_rate);
-      lsm6ds1.setGyroDataRate((lsm6ds_data_rate_t)configData.configDataIMUJOTISK.IMU1_accel_gyro_rate);
-      lsm6ds1.setAccelRange((lsm6ds_accel_range_t)configData.configDataIMUJOTISK.IMU1_accel_range);
-      lsm6ds1.setGyroRange((lsm6ds_gyro_range_t)configData.configDataIMUJOTISK.IMU1_gyro_range);
-      lis3mdl1.setDataRate((lis3mdl_dataRate_t)configData.configDataIMUJOTISK.IMU1_mag_freq);
-      lis3mdl1.setRange((lis3mdl_range_t)configData.configDataIMUJOTISK.IMU1_mag_range);
-
-      // Configure IMU2
-      lsm6ds2.setAccelDataRate((lsm6ds_data_rate_t)configData.configDataIMUJOTISK.IMU2_accel_gyro_freq);
-      lsm6ds2.setGyroDataRate((lsm6ds_data_rate_t)configData.configDataIMUJOTISK.IMU2_accel_gyro_freq);
-      lsm6ds2.setAccelRange((lsm6ds_accel_range_t)configData.configDataIMUJOTISK.IMU2_accel_range);
-      lsm6ds2.setGyroRange((lsm6ds_gyro_range_t)configData.configDataIMUJOTISK.IMU2_gyro_range);
-      lis3mdl2.setDataRate((lis3mdl_dataRate_t)configData.configDataIMUJOTISK.IMU2_mag_freq);
-      lis3mdl2.setRange((lis3mdl_range_t)configData.configDataIMUJOTISK.IMU2_mag_range);
-
-      Serial.println("Settings restored successfully");
-      return true;
-    }
-    Serial.println("No valid settings found");
-    return false;
-  }
-  Serial.println("Failed to initialize EEPROM");
-  return false;
-}
-
-void setDefaultSettings()
-{
-  IMU_config_data_anJoystick_packed configData;
-
-  configData.configDataIMUJOTISK.IMU1_accel_gyro_rate = LSM6DS_RATE_12_5_HZ;
-  configData.configDataIMUJOTISK.IMU1_mag_freq = LIS3MDL_DATARATE_155_HZ;
-  configData.configDataIMUJOTISK.IMU1_accel_range = LSM6DS_ACCEL_RANGE_2_G;
-  configData.configDataIMUJOTISK.IMU1_gyro_range = LSM6DS_GYRO_RANGE_250_DPS;
-  configData.configDataIMUJOTISK.IMU1_mag_range = LIS3MDL_RANGE_4_GAUSS;
-
-  configData.configDataIMUJOTISK.IMU2_accel_gyro_freq = LSM6DS_RATE_12_5_HZ;
-  configData.configDataIMUJOTISK.IMU2_mag_freq = LIS3MDL_DATARATE_155_HZ;
-  configData.configDataIMUJOTISK.IMU2_accel_range = LSM6DS_ACCEL_RANGE_2_G;
-  configData.configDataIMUJOTISK.IMU2_gyro_range = LSM6DS_GYRO_RANGE_250_DPS;
-  configData.configDataIMUJOTISK.IMU2_mag_range = LIS3MDL_RANGE_4_GAUSS;
-
-  configData.configDataIMUJOTISK.Joystick_flex_sensor_rate = 100;
-
-  uint16_t validationFlag = SETTINGS_VALID_FLAG;
-  EEPROM.put(SETTING_ADDRESS, validationFlag);
-  EEPROM.put(SETTING_ADDRESS + sizeof(validationFlag), configData);
-  EEPROM.commit();
-
-  Serial.println("Default settings saved");
-}
-
-bool initIMU()
+bool initIMU(SensorGroupIMU &sensorGroup)
 {
   Overall_status_data_packed overallStatusDatapPacked;
 
-  if (!lsm6ds1.begin_I2C(0x6A))
+  if (!sensorGroup.lsm6ds1->begin_I2C(0x6A))
   {
     Serial.println("Failed to find LSM6DS1 chip");
     overallStatusDatapPacked.overallStatusData.Imu1_status = statuscode_sensor::FAILED;
@@ -92,22 +24,26 @@ bool initIMU()
     overallStatusDatapPacked.overallStatusData.Imu1_status = statuscode_sensor::FAILED;
     return false;
   }
-  if (!lsm6ds2.begin_I2C(0x6B))
+  if (!sensorGroup.lsm6ds2->begin_I2C(0x6B))
   {
     Serial.println("Failed to find LSM6DS2 chip");
     overallStatusDatapPacked.overallStatusData.Imu2_status = statuscode_sensor::FAILED;
     return false;
   }
-  if (!lis3mdl1.begin_I2C(0x1E))
+  if (!sensorGroup.lis3mdl1->begin_I2C(0x1E))
   {
     Serial.println("Failed to find LIS3MDL chip 1");
     return false;
   }
-  if (!lis3mdl2.begin_I2C(0x1C))
+  if (!sensorGroup.lis3mdl1->begin_I2C(0x1C))
   {
     Serial.println("Failed to find LIS3MDL chip 2");
     return false;
   }
+
+  fillsion1.begin(FILTER_UPDATE_RATE_HZ);
+  fillsion2.begin(FILTER_UPDATE_RATE_HZ);
+  timestamp = millis();
 
   overallStatusDatapPacked.overallStatusData.Imu1_status = statuscode_sensor::RUNNING;
   overallStatusDatapPacked.overallStatusData.Imu2_status = statuscode_sensor::RUNNING;
@@ -115,81 +51,83 @@ bool initIMU()
   return true;
 }
 
-void setupIMUDataRate()
+
+/*
+brief Sets up the IMU data rate and range for the sensors.
+@param sensorGroup Reference to the SensorGroupIMU object containing IMU sensors
+
+*/
+
+void setupIMUDataRate(SensorGroupIMU &sensorGroup)
 {
-  lsm6ds1.setAccelDataRate(LSM6DS_RATE_12_5_HZ);
-  lsm6ds1.setGyroDataRate(LSM6DS_RATE_12_5_HZ);
-  lsm6ds1.setAccelRange(LSM6DS_ACCEL_RANGE_2_G);
-  lsm6ds1.setGyroRange(LSM6DS_GYRO_RANGE_250_DPS);
+  sensorGroup.lsm6ds1->setAccelDataRate(LSM6DS_RATE_12_5_HZ);
+  sensorGroup.lsm6ds1->setGyroDataRate(LSM6DS_RATE_12_5_HZ);
+  sensorGroup.lsm6ds1->setAccelRange(LSM6DS_ACCEL_RANGE_2_G);
+  sensorGroup.lsm6ds1->setGyroRange(LSM6DS_GYRO_RANGE_250_DPS);
 
-  lis3mdl1.setDataRate(LIS3MDL_DATARATE_155_HZ);
-  lis3mdl1.setRange(LIS3MDL_RANGE_4_GAUSS);
+  sensorGroup.lis3mdl1->setDataRate(LIS3MDL_DATARATE_155_HZ);
+  sensorGroup.lis3mdl1->setRange(LIS3MDL_RANGE_4_GAUSS);
 
-  lsm6ds2.setAccelDataRate(LSM6DS_RATE_12_5_HZ);
-  lsm6ds2.setGyroDataRate(LSM6DS_RATE_12_5_HZ);
-  lsm6ds2.setAccelRange(LSM6DS_ACCEL_RANGE_2_G);
-  lsm6ds2.setGyroRange(LSM6DS_GYRO_RANGE_250_DPS);
+  sensorGroup.lsm6ds2->setAccelDataRate(LSM6DS_RATE_12_5_HZ);
+  sensorGroup.lsm6ds2->setGyroDataRate(LSM6DS_RATE_12_5_HZ);
+  sensorGroup.lsm6ds2->setAccelRange(LSM6DS_ACCEL_RANGE_2_G);
+  sensorGroup.lsm6ds2->setGyroRange(LSM6DS_GYRO_RANGE_250_DPS);
 
-  lis3mdl2.setDataRate(LIS3MDL_DATARATE_155_HZ);
-  lis3mdl2.setRange(LIS3MDL_RANGE_4_GAUSS);
+  sensorGroup.lis3mdl2->setDataRate(LIS3MDL_DATARATE_155_HZ);
+  sensorGroup.lis3mdl2->setRange(LIS3MDL_RANGE_4_GAUSS);
 }
 
-void setupIMUInterrupts()
-{
-  pinMode(IMU1_INT_PIN, INPUT);
-  pinMode(IMU2_INT_PIN, INPUT);
-  attachInterrupt(digitalPinToInterrupt(IMU1_INT_PIN), imu1InterruptHandler, RISING);
-  lsm6ds1.configInt1(false, false, true);
-  lsm6ds2.configInt1(false, false, true);
-  Serial.println("IMU interrupts configured");
-}
 
-void IRAM_ATTR imu1InterruptHandler()
-{
-  imuDataReady = true;
-}
+/*
 
-bool loadCalibration()
+brief Reads data from the IMU sensors and updates the imu1DataRawPacked and imu2DataRawPacked structures.
+@param sensorGroup Reference to the SensorGroupIMU object containing IMU sensors
+This function reads acceleration, gyroscope, and magnetometer data from two IMU sensors (LSM6DS1 and LSM6DS2) and stores the raw data in packed structures (imu1DataRawPacked and imu2DataRawPacked). It also checks the time interval to ensure data is read at a specified update rate.
+*/
+
+void readDataIMU(SensorGroupIMU &sensorGroup)
 {
-  if (!EEPROM.begin(512))
+
+  if (IMUsAvailable)
   {
-    Serial.println("Failed to initialize EEPROM");
-    return false;
+
+    sensors_event_t accel1, gyro1, mag1;
+    sensors_event_t accel2, gyro2, mag2;
+
+    sensorGroup.lsm6ds1->getEvent(&accel1, &gyro1, NULL);
+    sensorGroup.lsm6ds2->getEvent(&accel2, &gyro2, NULL);
+    sensorGroup.lis3mdl1->getEvent(&mag1);
+    sensorGroup.lis3mdl2->getEvent(&mag2);
+
+    if ((millis() - timestamp) < (1000 / FILTER_UPDATE_RATE_HZ))
+    {
+      return;
+    }
+
+    imu1DataRawPacked.data_Imu1.accelX = accel1.acceleration.x;
+    imu1DataRawPacked.data_Imu1.accelY = accel1.acceleration.y;
+    imu1DataRawPacked.data_Imu1.accelZ = accel1.acceleration.z;
+
+    imu1DataRawPacked.data_Imu1.GyroX = gyro1.gyro.x;
+    imu1DataRawPacked.data_Imu1.GyroY = gyro1.gyro.y;
+    imu1DataRawPacked.data_Imu1.GyroZ = gyro1.gyro.z;
+
+    imu1DataRawPacked.data_Imu1.MagX = mag1.magnetic.x;
+    imu1DataRawPacked.data_Imu1.MagY = mag1.magnetic.y;
+    imu1DataRawPacked.data_Imu1.MagZ = mag1.magnetic.z;
+
+    imu2DataRawPacked.data_Imu2.accelX = accel2.acceleration.x;
+    imu2DataRawPacked.data_Imu2.accelY = accel2.acceleration.y;
+    imu2DataRawPacked.data_Imu2.accelZ = accel2.acceleration.z;
+
+    imu2DataRawPacked.data_Imu2.GyroX = gyro2.gyro.x;
+    imu2DataRawPacked.data_Imu2.GyroY = gyro2.gyro.y;
+    imu2DataRawPacked.data_Imu2.GyroZ = gyro2.gyro.z;
+
+    imu2DataRawPacked.data_Imu2.MagX = mag2.magnetic.x;
+    imu2DataRawPacked.data_Imu2.MagX = mag2.magnetic.y;
+    imu2DataRawPacked.data_Imu2.MagX = mag2.magnetic.z;
+
+
   }
-
-  EEPROM.get(CALIBRATION_ADDRESS, imu1EulerCalibration);
-  EEPROM.get(CALIBRATION_ADDRESS + sizeof(IMU1_euler_calib_status_packed), imu2EulerCalibration);
-
-  if (imu1EulerCalibration.eulerCalibStatus.calibation != 0 &&
-      imu2EulerCalibration.eulerCalibStatus.calibation != 0)
-  {
-    calibrationLoaded = true;
-    return true;
-  }
-
-  calibrationLoaded = false;
-  return false;
-}
-
-void setupBLEGamepad()
-{
-
-  Serial.println("Starting BLE work!");
-  bleGamepadConfig.setAutoReport(false);
-  bleGamepadConfig.setControllerType(CONTROLLER_TYPE_GAMEPAD);
-  bleGamepadConfig.setButtonCount(numOfButtons);
-  bleGamepadConfig.setHatSwitchCount(numOfHatSwitches);
-  bleGamepadConfig.setVid(0xe502);
-  bleGamepadConfig.setPid(0xabcd);
-
-  bleGamepadConfig.setModelNumber(const_cast<char *>("ESP32-G1"));
-  bleGamepadConfig.setSoftwareRevision(const_cast<char *>("v1.0.0"));
-  bleGamepadConfig.setSerialNumber(const_cast<char *>("SN001"));
-  bleGamepadConfig.setFirmwareRevision(const_cast<char *>("FW1.0"));
-  bleGamepadConfig.setHardwareRevision(const_cast<char *>("HW1.0"));
-
-  bleGamepadConfig.setAxesMin(0x0000);
-  bleGamepadConfig.setAxesMax(0x7FFF);
-
-  bleGamepad.begin(&bleGamepadConfig);
 }

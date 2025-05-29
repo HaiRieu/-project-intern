@@ -1,8 +1,6 @@
 #ifndef APP_H
 #define APP_H
 
-
-
 #include <Wire.h>
 #include <EEPROM.h>
 #include <Adafruit_LSM6DS3TRC.h>
@@ -12,6 +10,7 @@
 #include <Adafruit_MAX1704X.h>
 #include <BleGamepad.h>
 #include <stdint.h>
+#include <Adafruit_AHRS_NXPFusion.h> 
 
 
 #define CALIBRATION_ADDRESS 0x100
@@ -29,6 +28,22 @@
 
 #define numOfButtons 64
 #define numOfHatSwitches 4 
+
+#define LED_GREEN_PIN 37 
+#define LED_RED_PIN 35 
+#define LED_BLUE_PIN 36
+#define MOTOR_EN_PIN 13 
+
+#define FILTER_UPDATE_RATE_HZ 12.5
+
+
+struct SensorGroupIMU {
+  Adafruit_LSM6DS3TRC* lsm6ds1 ;
+  Adafruit_LSM6DS3TRC* lsm6ds2 ;
+  Adafruit_LIS3MDL* lis3mdl1 ;
+  Adafruit_LIS3MDL* lis3mdl2 ;
+};
+
 
 // Cấu hình packed struct
 typedef struct __attribute__((packed)) config_IMU__Joystick {
@@ -155,6 +170,14 @@ typedef union __attribute__((packed)) {
     uint8_t rawData[13]; 
 
 } IMU2_euler_calib_status_packed;
+
+typedef struct __attribute__((packed)) {
+    uint8_t calibationIMU1; 
+    uint8_t calibationIMU2  ; 
+
+} calibratee;
+
+
 
 
 typedef struct __attribute__((packed)) {

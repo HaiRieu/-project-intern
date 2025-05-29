@@ -1,0 +1,54 @@
+#include "appsetup.h" 
+
+
+bool restoreSettings(SensorGroupIMU &sensorGroup);
+void setDefaultSettings();
+bool initIMU(SensorGroupIMU &sensorGroup);
+void setupIMUDataRate(SensorGroupIMU &sensorGroup);
+void setupIMUInterrupts(SensorGroupIMU &sensorGroup);
+void IRAM_ATTR imu1InterruptHandler();
+bool loadCalibration();
+void setupBLEGamepad() ; 
+bool initFuelGauge() ;
+void ledRGB() ; 
+void systemInit() ;
+void updateOverallStatusData() ; 
+
+
+SensorGroupIMU sensorGroup;
+
+void setupApp() 
+{
+  Serial.begin(115200);
+  Serial.println("Setting up application...");
+
+  systemInit() ; 
+
+  if (!restoreSettings(sensorGroup)) {
+    Serial.println("No valid settings found, setting default configuration");
+    setDefaultSettings();
+  }
+
+
+  if (!initFuelGauge()) {
+    Serial.println("Fuel gauge initialization failed");
+  }
+
+
+  if (!initIMU(sensorGroup)) {
+    Serial.println("IMU initialization failed");
+  } else {
+    setupIMUDataRate(sensorGroup);
+    setupIMUInterrupts(sensorGroup);
+  }
+
+  if (loadCalibration()) {
+    Serial.println("Calibration loaded successfully");
+  } else {
+    Serial.println("Failed to load calibration");
+  }
+  setupBLEGamepad();
+  ledRGB() ; 
+  updateOverallStatusData();
+}
+
